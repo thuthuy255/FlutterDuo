@@ -55,18 +55,30 @@ class ApiConfig {
     }
   }
 
-  /// GET request
   static Future<dynamic> get(String endpoint) async {
-    final url = Uri.parse('$baseUrl$endpoint');
-    final headers = await _defaultHeaders();
+    try {
+      final url = Uri.parse('$baseUrl$endpoint');
+      final headers = await _defaultHeaders();
 
-    final response = await http.get(url, headers: headers);
-    final decoded = jsonDecode(response.body);
+      final response = await http.get(url, headers: headers);
+      final statusCode = response.statusCode;
+      final body = response.body;
 
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      return decoded;
-    } else {
-      throw Exception(decoded['message'] ?? 'Lỗi từ server');
+      if (body.isEmpty) {
+        throw Exception('Phản hồi từ server rỗng (statusCode: $statusCode)');
+      }
+
+      final decoded = jsonDecode(body);
+
+      if (statusCode >= 200 && statusCode < 300) {
+        return decoded;
+      } else {
+        throw Exception(
+          decoded['message'] ?? 'Lỗi từ server (statusCode: $statusCode)',
+        );
+      }
+    } catch (e) {
+      throw Exception('Lỗi khi gửi GET request: $e');
     }
   }
 

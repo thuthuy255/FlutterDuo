@@ -1,4 +1,6 @@
 import 'package:duolingo/dataFake/data_lesson.dart';
+import 'package:duolingo/home/services/home.api.dart';
+import 'package:duolingo/until/toast_util.dart';
 
 import 'package:flutter/material.dart';
 import 'list_lesson.dart';
@@ -14,14 +16,44 @@ class ContentHome extends StatefulWidget {
 
 class _ContentHomeState extends State<ContentHome> {
   final ScrollController _scrollController = ScrollController();
-
+  List<Map<String, dynamic>> topics = [];
   @override
   void initState() {
     super.initState();
+    _loadTopics();
     if (dataLesson.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         widget.setCurrentTopic(dataLesson[0]);
       });
+    }
+  }
+
+  Future<void> _loadTopics() async {
+    try {
+      final response = await TopicService.getAllTopic(); // Truyền body nếu cần
+      if (response['success'] == true && response['data'] is List) {
+        final List rawTopics = response['data'];
+        topics = rawTopics
+            .map(
+              (topic) => {
+                'nameTopic': topic['topicName'],
+                'listLessons': topic['lessons'] ?? [],
+              },
+            )
+            .toList();
+
+        if (topics.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            widget.setCurrentTopic(topics[0]);
+          });
+        }
+
+        setState(() {});
+      } else {
+        ToastUtil.show('Dữ liệu không hợp lệ', type: ToastType.warning);
+      }
+    } catch (e) {
+      ToastUtil.show('Lỗi khi tải topics: $e', type: ToastType.error);
     }
   }
 
