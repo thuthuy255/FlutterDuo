@@ -1,3 +1,5 @@
+import 'package:duolingo/auth/services/auth.api.dart';
+import 'package:duolingo/until/toast_util.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:crypto/crypto.dart';
@@ -12,7 +14,7 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-
+  bool isLoading = false;
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -27,14 +29,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return digest.toString();
   }
 
-  void handleRegister() {
+  void handleRegister() async {
     if (_formKey.currentState!.validate()) {
-      final hashedPassword = hashPassword(_passwordController.text);
+      final email = _emailController.text.trim();
+      final username = _usernameController.text.trim();
+      final password = _passwordController.text.trim();
+      final confirmPassword = _confirmPasswordController.text.trim();
 
-      // 🛡️ Gọi API gửi email, username, hashedPassword (KHÔNG gửi password gốc)
+      // So sánh mật khẩu nhập và xác nhận
+      if (password != confirmPassword) {
+        ToastUtil.show("Mật khẩu xác nhận không khớp", type: ToastType.warning);
+        return;
+      }
 
-      Fluttertoast.showToast(msg: "Tạo tài khoản thành công!");
-      Navigator.pop(context);
+      final hashedPassword = hashPassword(password);
+      setState(() => isLoading = true);
+      final body = {
+        "email": email,
+        "username": username,
+        "password": hashedPassword,
+        "confirmPassword": hashedPassword, // Nếu server yêu cầu giống
+      };
+
+      try {
+        final response = await AuthService.register(body); // Giả sử gọi như vậy
+        if (response['success'] == true) {
+          ToastUtil.show("Đăng ký thành công!", type: ToastType.success);
+          Navigator.pop(context); // Quay lại màn hình login chẳng hạn
+        } else {
+          ToastUtil.show(response['message'], type: ToastType.warning);
+        }
+        setState(() => isLoading = false);
+      } catch (e) {
+        Fluttertoast.showToast(msg: "Lỗi hệ thống: $e");
+        setState(() => isLoading = false);
+      }
     }
   }
 
@@ -46,157 +75,162 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: GestureDetector(
-          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  Align(
-                    alignment: Alignment.topRight,
-                    child: GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: const Padding(
-                        padding: EdgeInsets.only(top: 10),
-                        child: Text("×", style: TextStyle(fontSize: 28)),
+      body: Stack(
+        children: [
+          SafeArea(
+            child: GestureDetector(
+              onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      Align(
+                        alignment: Alignment.topRight,
+                        child: GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: const Padding(
+                            padding: EdgeInsets.only(top: 10),
+                            child: Text("×", style: TextStyle(fontSize: 28)),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Center(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        "https://media.giphy.com/media/TFNbcscr9JUUigDzrZ/giphy.gif",
-                        width: MediaQuery.of(context).size.width * 0.5,
-                        height: MediaQuery.of(context).size.width * 0.5,
+                      const SizedBox(height: 10),
+                      Center(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            "https://media.giphy.com/media/TFNbcscr9JUUigDzrZ/giphy.gif",
+                            width: MediaQuery.of(context).size.width * 0.5,
+                            height: MediaQuery.of(context).size.width * 0.5,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Tạo tài khoản',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF58CC02),
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Hãy tạo tài khoản để đồng hành cùng tớ',
-                    style: TextStyle(fontSize: 15, color: Color(0xFF374151)),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  _buildInput(
-                    label: "Địa chỉ email",
-                    controller: _emailController,
-                    hint: "Nhập địa chỉ email",
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return "Vui lòng nhập email";
-                      }
-                      final emailRegex = RegExp(
-                        r"^[a-zA-Z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$",
-                      );
-                      if (!emailRegex.hasMatch(value)) {
-                        return "Email không hợp lệ";
-                      }
-                      return null;
-                    },
-                  ),
-                  _buildInput(
-                    label: "Mật khẩu",
-                    controller: _passwordController,
-                    hint: "Nhập mật khẩu",
-                    obscureText: true,
-                    isPassword: true,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return "Vui lòng nhập mật khẩu";
-                      }
-                      if (!RegExp(
-                        r'^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$',
-                      ).hasMatch(value)) {
-                        return "Ít nhất 8 ký tự, có chữ hoa, số, ký tự đặc biệt";
-                      }
-                      return null;
-                    },
-                  ),
-                  _buildInput(
-                    label: "Nhập lại mật khẩu",
-                    controller: _confirmPasswordController,
-                    hint: "Nhập lại mật khẩu",
-                    obscureText: true,
-                    isConfirmPassword: true,
-                    validator: (value) {
-                      if (value != _passwordController.text) {
-                        return "Mật khẩu không trùng khớp";
-                      }
-                      return null;
-                    },
-                  ),
-                  _buildInput(
-                    label: "Tên người dùng",
-                    controller: _usernameController,
-                    hint: "Nhập tên người dùng",
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return "Vui lòng nhập tên người dùng";
-                      }
-                      if (!RegExp(r'^[a-zA-Z0-9_]{3,20}$').hasMatch(value)) {
-                        return "Tên chỉ gồm chữ, số, dấu _ (3–20 ký tự)";
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: handleRegister,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF58CC02),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 40,
-                        vertical: 14,
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Tạo tài khoản',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF58CC02),
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Hãy tạo tài khoản để đồng hành cùng tớ',
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: Color(0xFF374151),
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      elevation: 5,
-                    ),
-                    child: const Text(
-                      "Tạo tài khoản của bạn",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                      const SizedBox(height: 24),
+                      _buildInput(
+                        label: "Địa chỉ email",
+                        controller: _emailController,
+                        hint: "Nhập địa chỉ email",
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return "Vui lòng nhập email";
+                          }
+                          final emailRegex = RegExp(
+                            r"^[a-zA-Z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$",
+                          );
+                          if (!emailRegex.hasMatch(value)) {
+                            return "Email không hợp lệ";
+                          }
+                          return null;
+                        },
                       ),
-                    ),
+                      _buildInput(
+                        label: "Mật khẩu",
+                        controller: _passwordController,
+                        hint: "Nhập mật khẩu",
+                        obscureText: true,
+                        isPassword: true,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return "Vui lòng nhập mật khẩu";
+                          }
+                          if (!RegExp(
+                            r'^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$',
+                          ).hasMatch(value)) {
+                            return "Ít nhất 8 ký tự, có chữ hoa, số, ký tự đặc biệt";
+                          }
+                          return null;
+                        },
+                      ),
+                      _buildInput(
+                        label: "Nhập lại mật khẩu",
+                        controller: _confirmPasswordController,
+                        hint: "Nhập lại mật khẩu",
+                        obscureText: true,
+                        isConfirmPassword: true,
+                        validator: (value) {
+                          if (value != _passwordController.text) {
+                            return "Mật khẩu không trùng khớp";
+                          }
+                          return null;
+                        },
+                      ),
+                      _buildInput(
+                        label: "Tên người dùng",
+                        controller: _usernameController,
+                        hint: "Nhập tên người dùng",
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: handleRegister,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF58CC02),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 40,
+                            vertical: 14,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          elevation: 5,
+                        ),
+                        child: const Text(
+                          "Tạo tài khoản của bạn",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 26),
+                      GestureDetector(
+                        onTap: navigateToLogin,
+                        child: const Text(
+                          "Bạn đã có tài khoản? Đăng nhập tại đây",
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF58CC02),
+                            decoration: TextDecoration.underline,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
                   ),
-                  const SizedBox(height: 26),
-                  GestureDetector(
-                    onTap: navigateToLogin,
-                    child: const Text(
-                      "Bạn đã có tài khoản? Đăng nhập tại đây",
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF58CC02),
-                        decoration: TextDecoration.underline,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+          if (isLoading)
+            Container(
+              color: Colors.black.withOpacity(0.3),
+              child: const Center(
+                child: CircularProgressIndicator(color: Color(0xFF58CC02)),
+              ),
+            ),
+        ],
       ),
     );
   }

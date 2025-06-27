@@ -1,7 +1,10 @@
+import 'package:duolingo/auth/services/auth.api.dart';
+import 'package:duolingo/until/toast_util.dart';
 import 'package:flutter/material.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
-  const ResetPasswordScreen({super.key});
+  final String email;
+  const ResetPasswordScreen({super.key, required this.email});
 
   @override
   State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
@@ -20,15 +23,15 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     final repeatPassword = _repeatPasswordController.text.trim();
 
     if (newPassword.isEmpty || repeatPassword.isEmpty) {
-      setState(() => _errorMessage = "Please fill in all fields");
+      setState(() => _errorMessage = "Vui lòng nhập đầy đủ thông tin");
       return false;
     }
     if (newPassword.length < 6) {
-      setState(() => _errorMessage = "Password must be at least 6 characters");
+      setState(() => _errorMessage = "Mật khẩu phải có ít nhất 6 ký tự");
       return false;
     }
     if (newPassword != repeatPassword) {
-      setState(() => _errorMessage = "Passwords do not match");
+      setState(() => _errorMessage = "Mật khẩu nhập lại không khớp");
       return false;
     }
     setState(() => _errorMessage = null);
@@ -37,31 +40,54 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   Future<void> handleSubmit() async {
     if (!validateForm()) return;
+    final newPassword = _newPasswordController.text.trim();
     setState(() => _isLoading = true);
-
-    await Future.delayed(const Duration(seconds: 1)); // Giả lập API call
-
-    setState(() => _isLoading = false);
-    if (mounted) {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text("Success"),
-          content: const Text("Password changed successfully!"),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // đóng dialog
-                Navigator.of(
-                  context,
-                ).pushReplacementNamed('/'); // về login/home
-              },
-              child: const Text("OK"),
-            ),
-          ],
-        ),
-      );
+    final email = widget.email.toString();
+    if (email.isEmpty) {
+      ToastUtil.show("Chưa có dữ liệu email", type: ToastType.warning);
+      return;
     }
+    final body = {"email": email, "newPassword": newPassword};
+
+    try {
+      final response = await AuthService.forgotPassword(body);
+      if (response['success'] == true) {
+        ToastUtil.show(response['message'], type: ToastType.success);
+        setState(() {
+          _isLoading = true;
+        });
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      } else {
+        ToastUtil.show(response['message'], type: ToastType.warning);
+      }
+    } catch (e) {
+      ToastUtil.show("Có lỗi xảy ra", type: ToastType.error);
+      print("Có lỗi xảy ra: $e");
+      setState(() {
+        _isLoading = false;
+      });
+    }
+
+    // if (mounted) {
+    //   showDialog(
+    //     context: context,
+    //     builder: (_) => AlertDialog(
+    //       title: const Text("Success"),
+    //       content: const Text("Password changed successfully!"),
+    //       actions: [
+    //         TextButton(
+    //           onPressed: () {
+    //             Navigator.of(context).pop(); // đóng dialog
+    //             Navigator.of(
+    //               context,
+    //             ).pushReplacementNamed('/'); // về login/home
+    //           },
+    //           child: const Text("OK"),
+    //         ),
+    //       ],
+    //     ),
+    //   );
+    // }
   }
 
   @override

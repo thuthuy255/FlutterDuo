@@ -10,9 +10,13 @@ class MainStackNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final token = context.watch<AppState>().token;
+    debugPrint('[DEBUG] Token hiện tại trong AppState: $token');
+    if (token == null) {
+      // ⏳ Hiển thị loading trong lúc load token
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
-    // ✅ Không tạo MaterialApp mới nữa
-    return token != null && token.isNotEmpty
+    return token.isNotEmpty
         ? const MainTabNavigation()
         : const MainStackOnBoarding();
   }

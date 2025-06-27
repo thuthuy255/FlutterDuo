@@ -26,9 +26,13 @@ Route<dynamic> generateRoute(RouteSettings settings) {
     case '/forgot-password':
       return MaterialPageRoute(builder: (_) => const ForgotPasswordScreen());
     case '/enter-otp':
-      return MaterialPageRoute(builder: (_) => const EnterOtpScreen());
+      final email = settings.arguments as String;
+      return MaterialPageRoute(builder: (_) => EnterOtpScreen(email: email));
     case '/reset-password':
-      return MaterialPageRoute(builder: (_) => const ResetPasswordScreen());
+      final email = settings.arguments as String;
+      return MaterialPageRoute(
+        builder: (_) => ResetPasswordScreen(email: email),
+      );
     case '/ConversationLesson':
       return MaterialPageRoute(builder: (_) => const ConversationLesson());
     case '/streak':

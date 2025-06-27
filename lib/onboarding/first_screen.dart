@@ -51,17 +51,6 @@ class _FirstScreenState extends State<FirstScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const SizedBox(height: 35),
-            // Row(
-            //   mainAxisAlignment: MainAxisAlignment.center,
-            //   children: [
-            //     Image.asset('assets/images/forest.png', width: 50, height: 50),
-            //     const SizedBox(width: 10),
-            //     const Text(
-            //       "Elearning",
-            //       style: TextStyle(fontSize: 30, color: Color(0xFF58CC02)),
-            //     ),
-            //   ],
-            // ),
             Column(
               children: const [
                 Image(

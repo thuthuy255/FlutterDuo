@@ -1,22 +1,24 @@
+import 'package:duolingo/auth/services/auth.api.dart';
+import 'package:duolingo/until/toast_util.dart';
 import 'package:flutter/material.dart';
 
 class EnterOtpScreen extends StatefulWidget {
-  const EnterOtpScreen({super.key});
-
+  final String email;
+  const EnterOtpScreen({super.key, required this.email});
   @override
   State<EnterOtpScreen> createState() => _EnterOtpScreenState();
 }
 
 class _EnterOtpScreenState extends State<EnterOtpScreen> {
-  final List<FocusNode> _focusNodes = List.generate(4, (_) => FocusNode());
+  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
   final List<TextEditingController> _controllers = List.generate(
-    4,
+    6,
     (_) => TextEditingController(),
   );
 
   String? _error;
   bool _isLoading = false;
-
+  bool isLoading = false;
   @override
   void initState() {
     super.initState();
@@ -24,7 +26,7 @@ class _EnterOtpScreenState extends State<EnterOtpScreen> {
   }
 
   void _onChanged(String value, int index) {
-    if (value.length == 1 && index < 3) {
+    if (value.length == 1 && index < 5) {
       _focusNodes[index + 1].requestFocus();
     }
     if (value.isEmpty && index > 0) {
@@ -34,41 +36,34 @@ class _EnterOtpScreenState extends State<EnterOtpScreen> {
   }
 
   Future<void> _handleSubmit() async {
-    final otp = _controllers.map((c) => c.text).join();
-
-    if (otp.length < 4 || otp.contains(RegExp(r'[^0-9]'))) {
-      setState(() => _error = "Please enter complete OTP");
+    final otp = _controllers.map((c) => c.text).join().toString();
+    final email = widget.email.toString();
+    if (otp.length < 6 || otp.contains(RegExp(r'[^0-9]'))) {
+      setState(() => _error = "Please enter complete 6-digit OTP");
+      return;
+    }
+    if (email.isEmpty) {
+      ToastUtil.show("Chưa có dữ liệu email", type: ToastType.warning);
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    await Future.delayed(const Duration(seconds: 1));
-
-    if (otp == "1234") {
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text("Success"),
-            content: const Text("OTP verified successfully!"),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(context, '/reset-password');
-                },
-                child: const Text("OK"),
-              ),
-            ],
-          ),
-        );
+    try {
+      final response = await AuthService.verifyOTP(email, otp);
+      if (response['success'] == true) {
+        ToastUtil.show(response['message'], type: ToastType.success);
+        Navigator.pushNamed(context, '/reset-password', arguments: email);
+        setState(() {
+          _isLoading = true;
+          _error = null;
+        });
+      } else {
+        ToastUtil.show(response['message'], type: ToastType.warning);
       }
-    } else {
-      setState(() => _error = "Invalid OTP. Please try again.");
+      setState(() => isLoading = false);
+    } catch (e) {
+      ToastUtil.show("Có lỗi xảy ra", type: ToastType.error);
+      print("Có lỗi xảy ra: $e");
+      setState(() => isLoading = false);
     }
 
     setState(() => _isLoading = false);
@@ -87,7 +82,7 @@ class _EnterOtpScreenState extends State<EnterOtpScreen> {
 
   Widget _buildOtpField(int index) {
     return SizedBox(
-      width: 56,
+      width: 48,
       child: TextField(
         controller: _controllers[index],
         focusNode: _focusNodes[index],
@@ -157,7 +152,7 @@ class _EnterOtpScreenState extends State<EnterOtpScreen> {
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  "Please enter the 4-digit CODE sent to your phone number",
+                  "Please enter the 6-digit CODE sent to your phone number",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Color(0xFF374151),
@@ -168,7 +163,7 @@ class _EnterOtpScreenState extends State<EnterOtpScreen> {
                 const SizedBox(height: 32),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: List.generate(4, (index) => _buildOtpField(index)),
+                  children: List.generate(6, (index) => _buildOtpField(index)),
                 ),
                 if (_error != null)
                   Padding(
