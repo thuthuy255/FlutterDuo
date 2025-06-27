@@ -1,7 +1,10 @@
 // import 'package:duolingo/home/screen/home_screen.dart';
+import 'package:duolingo/auth/services/auth.api.dart';
 import 'package:duolingo/stack/main_tab_navigation.dart';
+import 'package:duolingo/until/formatDecode.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,15 +18,42 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  void handleLogin() {
+  void handleLogin() async {
     if (_formKey.currentState!.validate()) {
       Fluttertoast.showToast(msg: 'Đăng nhập thành công');
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+      // In ra kiểm tra (hoặc truyền đi API)
+      final body = {'email': email, 'password': password};
+      print("Dữ liệu đăng nhập: $body");
+      AuthService.login(body)
+          .then((res) async {
+            print("✅ Kết quả đăng nhập: $res");
 
-      // ✅ Chuyển sang HomeScreen trực tiếp
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const MainTabNavigation()),
-      );
+            if (res['success'] == true) {
+              final token = res['data']['token'];
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('token', token);
+
+              Fluttertoast.showToast(
+                msg: res['message'] ?? 'Đăng nhập thành công',
+              );
+
+              // 👉 Chuyển sang trang chính sau khi đăng nhập
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const MainTabNavigation()),
+              );
+            } else {
+              Fluttertoast.showToast(
+                msg: res['message'] ?? 'Đăng nhập thất bại',
+              );
+            }
+          })
+          .catchError((e) {
+            print("❌ Lỗi đăng nhập: $e");
+            Fluttertoast.showToast(msg: 'Lỗi kết nối hoặc máy chủ: $e');
+          });
     }
   }
 
