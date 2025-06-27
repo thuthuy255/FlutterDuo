@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:crypto/crypto.dart';
+import 'dart:convert'; // for utf8
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -16,11 +18,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _confirmPasswordController = TextEditingController();
   final _usernameController = TextEditingController();
 
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+
+  String hashPassword(String password) {
+    final bytes = utf8.encode(password);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
+
   void handleRegister() {
     if (_formKey.currentState!.validate()) {
-      // Gọi API ở đây
+      final hashedPassword = hashPassword(_passwordController.text);
+
+      // 🛡️ Gọi API gửi email, username, hashedPassword (KHÔNG gửi password gốc)
+
       Fluttertoast.showToast(msg: "Tạo tài khoản thành công!");
-      Navigator.pop(context); // Quay về login
+      Navigator.pop(context);
     }
   }
 
@@ -87,7 +101,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       if (value == null || value.isEmpty) {
                         return "Vui lòng nhập email";
                       }
-                      if (!value.contains('@')) {
+                      final emailRegex = RegExp(
+                        r"^[a-zA-Z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$",
+                      );
+                      if (!emailRegex.hasMatch(value)) {
                         return "Email không hợp lệ";
                       }
                       return null;
@@ -98,9 +115,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     controller: _passwordController,
                     hint: "Nhập mật khẩu",
                     obscureText: true,
+                    isPassword: true,
                     validator: (value) {
-                      if (value == null || value.length < 6) {
-                        return "Mật khẩu tối thiểu 6 ký tự";
+                      if (value == null || value.isEmpty) {
+                        return "Vui lòng nhập mật khẩu";
+                      }
+                      if (!RegExp(
+                        r'^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$',
+                      ).hasMatch(value)) {
+                        return "Ít nhất 8 ký tự, có chữ hoa, số, ký tự đặc biệt";
                       }
                       return null;
                     },
@@ -110,6 +133,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     controller: _confirmPasswordController,
                     hint: "Nhập lại mật khẩu",
                     obscureText: true,
+                    isConfirmPassword: true,
                     validator: (value) {
                       if (value != _passwordController.text) {
                         return "Mật khẩu không trùng khớp";
@@ -124,6 +148,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return "Vui lòng nhập tên người dùng";
+                      }
+                      if (!RegExp(r'^[a-zA-Z0-9_]{3,20}$').hasMatch(value)) {
+                        return "Tên chỉ gồm chữ, số, dấu _ (3–20 ký tự)";
                       }
                       return null;
                     },
@@ -179,6 +206,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     required TextEditingController controller,
     required String hint,
     bool obscureText = false,
+    bool isPassword = false,
+    bool isConfirmPassword = false,
     String? Function(String?)? validator,
   }) {
     return Padding(
@@ -197,7 +226,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           const SizedBox(height: 4),
           TextFormField(
             controller: controller,
-            obscureText: obscureText,
+            obscureText: isPassword
+                ? _obscurePassword
+                : isConfirmPassword
+                ? _obscureConfirmPassword
+                : obscureText,
             validator: validator,
             decoration: InputDecoration(
               hintText: hint,
@@ -211,6 +244,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 borderRadius: BorderRadius.circular(8),
                 borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
               ),
+              suffixIcon: (isPassword || isConfirmPassword)
+                  ? IconButton(
+                      icon: Icon(
+                        (isPassword && _obscurePassword) ||
+                                (isConfirmPassword && _obscureConfirmPassword)
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          if (isPassword) {
+                            _obscurePassword = !_obscurePassword;
+                          } else {
+                            _obscureConfirmPassword = !_obscureConfirmPassword;
+                          }
+                        });
+                      },
+                    )
+                  : null,
             ),
           ),
         ],
