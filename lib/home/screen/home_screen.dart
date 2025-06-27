@@ -13,6 +13,9 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? currentTopic;
 
+  // Màu gradient hiện tại
+  List<Color> currentGradient = [Colors.white, Colors.white];
+
   void handleNavigateHome() {
     Navigator.pushNamed(context, '/ProgressTopic');
   }
@@ -25,41 +28,61 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            const SizedBox(height: 20),
-
-            // Header
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 30),
-              child: HeaderHome(),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Nút chọn chủ đề
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30),
-              child: ButtonTopic(
-                itemNumberTopic: "PHẦN 1, CỬA 1",
-                nameTopic: currentTopic?["nameTopic"] ?? "Chọn một chủ đề",
-                iconBookAsset: 'assets/svg/icon_tab_navigation/icon_book.dart',
-                onPressTopic: handleNavigateHome,
-                onPressLesson: handleNavigateConversationLesson,
+            // Nền gradient thay đổi theo topic
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: currentGradient,
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
               ),
             ),
 
-            const SizedBox(height: 20),
+            // Nội dung
+            Column(
+              children: [
+                const SizedBox(height: 20),
 
-            // Nội dung bài học zigzag
-            Expanded(
-              child: ContentHome(
-                setCurrentTopic: (topic) {
-                  setState(() {
-                    currentTopic = topic;
-                  });
-                },
-              ),
+                // Header
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 30),
+                  child: HeaderHome(),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Nút chọn chủ đề
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 30),
+                  child: ButtonTopic(
+                    itemNumberTopic: "PHẦN 1, CỬA 1",
+                    nameTopic: currentTopic?["nameTopic"] ?? "Chọn một chủ đề",
+                    iconBookAsset:
+                        'assets/svg/icon_tab_navigation/icon_book.dart',
+                    onPressTopic: handleNavigateHome,
+                    onPressLesson: handleNavigateConversationLesson,
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Nội dung bài học zigzag
+                Expanded(
+                  child: ContentHome(
+                    setCurrentTopic: (topic) {
+                      setState(() {
+                        currentTopic = topic;
+                        currentGradient =
+                            topic["gradientColors"] ??
+                            [Colors.white, Colors.white];
+                      });
+                    },
+                  ),
+                ),
+              ],
             ),
           ],
         ),
