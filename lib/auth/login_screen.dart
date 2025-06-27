@@ -1,7 +1,10 @@
+// import 'package:duolingo/home/screen/home_screen.dart';
+import 'package:duolingo/auth/services/auth.api.dart';
 import 'package:duolingo/stack/main_tab_navigation.dart';
+import 'package:duolingo/until/formatDecode.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,26 +17,43 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _secureStorage = FlutterSecureStorage();
-
-  bool _obscurePassword = true;
 
   void handleLogin() async {
     if (_formKey.currentState!.validate()) {
-      // ⚠️ Thay thế đoạn này bằng API thật nếu có
-      // Giả lập token trả về từ API backend
-      const fakeToken = "abc123xyz.token";
-
-      // ✅ Lưu token an toàn
-      await _secureStorage.write(key: 'access_token', value: fakeToken);
-
       Fluttertoast.showToast(msg: 'Đăng nhập thành công');
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+      // In ra kiểm tra (hoặc truyền đi API)
+      final body = {'email': email, 'password': password};
+      print("Dữ liệu đăng nhập: $body");
+      AuthService.login(body)
+          .then((res) async {
+            print("✅ Kết quả đăng nhập: $res");
 
-      // Chuyển trang chính
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const MainTabNavigation()),
-      );
+            if (res['success'] == true) {
+              final token = res['data']['token'];
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('token', token);
+
+              Fluttertoast.showToast(
+                msg: res['message'] ?? 'Đăng nhập thành công',
+              );
+
+              // 👉 Chuyển sang trang chính sau khi đăng nhập
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const MainTabNavigation()),
+              );
+            } else {
+              Fluttertoast.showToast(
+                msg: res['message'] ?? 'Đăng nhập thất bại',
+              );
+            }
+          })
+          .catchError((e) {
+            print("❌ Lỗi đăng nhập: $e");
+            Fluttertoast.showToast(msg: 'Lỗi kết nối hoặc máy chủ: $e');
+          });
     }
   }
 
@@ -98,10 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       if (value == null || value.isEmpty) {
                         return 'Vui lòng nhập email';
                       }
-                      final emailRegex = RegExp(
-                        r"^[a-zA-Z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$",
-                      );
-                      if (!emailRegex.hasMatch(value)) {
+                      if (!value.contains('@')) {
                         return 'Email không hợp lệ';
                       }
                       return null;
@@ -113,11 +130,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     hint: 'Nhập mật khẩu',
                     obscureText: true,
                     validator: (value) {
-                      if (value == null || value.length < 8) {
-                        return 'Mật khẩu phải từ 8 ký tự';
-                      }
-                      if (!value.contains(RegExp(r'[A-Z]'))) {
-                        return 'Mật khẩu phải có ít nhất một chữ hoa';
+                      if (value == null || value.length < 6) {
+                        return 'Mật khẩu tối thiểu 6 ký tự';
                       }
                       return null;
                     },
@@ -203,7 +217,7 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(height: 4),
         TextFormField(
           controller: controller,
-          obscureText: obscureText ? _obscurePassword : false,
+          obscureText: obscureText,
           validator: validator,
           decoration: InputDecoration(
             hintText: hint,
@@ -217,20 +231,6 @@ class _LoginScreenState extends State<LoginScreen> {
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: Color(0xFFE5E7EB), width: 1),
             ),
-            suffixIcon: obscureText
-                ? IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility
-                          : Icons.visibility_off,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
-                  )
-                : null,
           ),
         ),
         const SizedBox(height: 16),
