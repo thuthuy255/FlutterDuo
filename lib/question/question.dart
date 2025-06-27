@@ -1,5 +1,6 @@
+import 'package:duolingo/components/header/header_lesson.dart';
+import 'package:duolingo/stack/main_tab_navigation.dart';
 import 'package:flutter/material.dart';
-import 'package:duolingo/components/question/question_sc.dart';
 
 class QuestionScreen extends StatefulWidget {
   const QuestionScreen({super.key});
@@ -9,19 +10,69 @@ class QuestionScreen extends StatefulWidget {
 }
 
 class _QuestionScreenState extends State<QuestionScreen> {
+  int currentStep = 0;
   int selectedIndex = -1;
   bool showFeedback = false;
 
-  final List<Map<String, dynamic>> answers = [
-    {"image": "assets/images/coffee.png", "label": "nước", "isCorrect": false},
-    {"image": "assets/images/coffee.png", "label": "cà phê", "isCorrect": true},
-    {"image": "assets/images/coffee.png", "label": "trà", "isCorrect": false},
-    {"image": "assets/images/coffee.png", "label": "sữa", "isCorrect": false},
-  ];
+  final Map<String, dynamic> lessonData = {
+    "idLesson": 1007,
+    "nameLesson": "Tranh luận: Cấu trúc cơ bản",
+    "typeLesson": "Ngữ pháp",
+    "questions": [
+      {
+        "idQuestion": 1004,
+        "questionText": "Câu nào sau đây là câu tranh luận đúng cấu trúc?",
+        "answers": [
+          {"idAnswer": 1016, "answerText": "Hello", "isCorrect": true},
+          {"idAnswer": 1017, "answerText": "This is blue", "isCorrect": false},
+          {
+            "idAnswer": 1018,
+            "answerText": "My name is Thuy",
+            "isCorrect": false,
+          },
+        ],
+      },
+      {
+        "idQuestion": 1005,
+        "questionText": "Từ nào sau đây dùng để mở đầu một lập luận?",
+        "answers": [
+          {"idAnswer": 1015, "answerText": "I am fine", "isCorrect": true},
+          {"idAnswer": 1019, "answerText": "Chim", "isCorrect": false},
+          {"idAnswer": 1020, "answerText": "Hello", "isCorrect": false},
+        ],
+      },
+      {
+        "idQuestion": 1008,
+        "questionText": "What is your name?",
+        "answers": [
+          {"idAnswer": 1024, "answerText": "I am fine", "isCorrect": false},
+          {"idAnswer": 1025, "answerText": "Hello", "isCorrect": false},
+          {
+            "idAnswer": 1026,
+            "answerText": "My name is Thuy",
+            "isCorrect": true,
+          },
+        ],
+      },
+    ],
+  };
+
+  int get totalSteps => lessonData['questions'].length;
+
+  void _prevStep() {
+    if (currentStep > 0) {
+      setState(() {
+        currentStep--;
+        selectedIndex = -1;
+        showFeedback = false;
+      });
+    } else {
+      Navigator.pop(context);
+    }
+  }
 
   void onSelect(int index) {
-    if (showFeedback) return; // ngăn chọn lại khi đã chọn rồi
-
+    if (showFeedback) return;
     setState(() {
       selectedIndex = index;
       showFeedback = true;
@@ -29,14 +80,28 @@ class _QuestionScreenState extends State<QuestionScreen> {
   }
 
   void onContinue() {
-    setState(() {
-      selectedIndex = -1;
-      showFeedback = false;
-    });
+    if (currentStep < totalSteps - 1) {
+      setState(() {
+        currentStep++;
+        selectedIndex = -1;
+        showFeedback = false;
+      });
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MainTabNavigation()),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final questions = lessonData['questions'] as List;
+    final currentQuestion = questions[currentStep];
+    final answers = currentQuestion['answers'] as List;
+
+    final isLastStep = currentStep == totalSteps - 1;
+
     return Scaffold(
       backgroundColor: const Color(0xFFFDFDFD),
       body: SafeArea(
@@ -45,20 +110,19 @@ class _QuestionScreenState extends State<QuestionScreen> {
           children: [
             const SizedBox(height: 12),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: LinearProgressIndicator(
-                value: 0.25,
-                backgroundColor: const Color(0xFFE5E5E5),
-                color: const Color(0xFF58CC02),
-                minHeight: 6,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: HeaderLesson(
+                percent: (currentStep + 1) / totalSteps,
+                onPressGoBack: _prevStep,
+                colorProgressBar: const Color(0xFF58CC02),
               ),
             ),
             const SizedBox(height: 24),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Text(
-                "TỪ VỰNG MỚI",
-                style: TextStyle(
+                "CÂU HỎI ${currentStep + 1}/$totalSteps",
+                style: const TextStyle(
                   color: Color(0xFFB36BE3),
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
@@ -66,41 +130,23 @@ class _QuestionScreenState extends State<QuestionScreen> {
               ),
             ),
             const SizedBox(height: 6),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24),
-              child: Text(
-                "Chọn hình ảnh đúng",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-              ),
-            ),
-            const SizedBox(height: 10),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                children: [
-                  Image.asset("assets/icons/duo.png", height: 60, width: 60),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: QuestionSCWidget(
-                      prototypeQuestion: "What kind of drink is this?",
-                      iconSvgPath: "assets/icons/volume.svg",
-                    ),
-                  ),
-                ],
+              child: Text(
+                currentQuestion['questionText'],
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
             const SizedBox(height: 24),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: GridView.builder(
+                child: ListView.separated(
                   itemCount: answers.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 1,
-                  ),
+                  separatorBuilder: (_, __) => const SizedBox(height: 16),
                   itemBuilder: (context, index) {
                     final item = answers[index];
                     final isSelected = selectedIndex == index;
@@ -117,24 +163,18 @@ class _QuestionScreenState extends State<QuestionScreen> {
                     return GestureDetector(
                       onTap: () => onSelect(index),
                       child: Container(
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: bgColor ?? Colors.white,
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(color: borderColor, width: 2),
                         ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Image.asset(item["image"], height: 64),
-                            const SizedBox(height: 8),
-                            Text(
-                              item["label"],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          item['answerText'],
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     );
@@ -142,18 +182,16 @@ class _QuestionScreenState extends State<QuestionScreen> {
                 ),
               ),
             ),
-
             if (showFeedback)
               Container(
-                // margin: const EdgeInsets.all(20),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 30,
                 ),
                 decoration: BoxDecoration(
                   color: answers[selectedIndex]["isCorrect"]
-                      ? const Color(0xFFD4F9C2) // xanh nhạt
-                      : const Color(0xFFFFD6D6), // đỏ nhạt
+                      ? const Color(0xFFD4F9C2)
+                      : const Color(0xFFFFD6D6),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Column(
@@ -199,9 +237,9 @@ class _QuestionScreenState extends State<QuestionScreen> {
                           elevation: 2,
                           shadowColor: Colors.green.shade200,
                         ),
-                        child: const Text(
-                          "CONTINUE",
-                          style: TextStyle(
+                        child: Text(
+                          isLastStep ? "DONE" : "CONTINUE",
+                          style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                             color: Colors.white,
