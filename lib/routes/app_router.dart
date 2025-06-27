@@ -1,6 +1,7 @@
 import 'package:duolingo/components/conversation/question_widget.dart';
 import 'package:duolingo/home/screen/conversation_lesson.dart';
 import 'package:duolingo/home/screen/streak_screen.dart';
+import 'package:duolingo/question/question.dart';
 import 'package:flutter/material.dart';
 import 'package:duolingo/stack/main_stack_onboarding.dart';
 import 'package:duolingo/auth/forgot_password_screen.dart';
@@ -32,6 +33,8 @@ Route<dynamic> generateRoute(RouteSettings settings) {
       return MaterialPageRoute(builder: (_) => const ConversationLesson());
     case '/streak':
       return MaterialPageRoute(builder: (_) => const StreakScreen());
+    case '/question':
+      return MaterialPageRoute(builder: (_) => const QuestionScreen());
     default:
       return MaterialPageRoute(
         builder: (_) =>
