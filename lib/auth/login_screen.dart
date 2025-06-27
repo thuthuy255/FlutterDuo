@@ -20,16 +20,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void handleLogin() async {
     if (_formKey.currentState!.validate()) {
-      Fluttertoast.showToast(msg: 'Đăng nhập thành công');
       final email = _emailController.text.trim();
       final password = _passwordController.text;
       // In ra kiểm tra (hoặc truyền đi API)
       final body = {'email': email, 'password': password};
-      print("Dữ liệu đăng nhập: $body");
+
       AuthService.login(body)
           .then((res) async {
-            print("✅ Kết quả đăng nhập: $res");
-
             if (res['success'] == true) {
               final token = res['data']['token'];
               final prefs = await SharedPreferences.getInstance();

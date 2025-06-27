@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiConfig {
   static const String baseUrl =
-      'http://192.168.27.100:50001/api/'; // 🔁 Đổi URL của bạn
+      'http://192.168.27.107:50001/api/'; // 🔁 Đổi URL của bạn
 
   /// Lấy token từ local storage
   static Future<String?> _getToken() async {
@@ -42,14 +42,16 @@ class ApiConfig {
       headers: headers,
       body: jsonEncode(data),
     );
-    print('Response body: ${response.statusCode}');
-    // ✅ Tự kiểm tra lỗi và trả về data decode sẵn
-    final decoded = jsonDecode(response.body);
 
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      return decoded;
-    } else {
-      throw Exception(decoded['message'] ?? 'Lỗi từ server');
+    try {
+      final decoded = jsonDecode(response.body);
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return decoded;
+      } else {
+        throw Exception(decoded['message'] ?? 'Lỗi từ server');
+      }
+    } catch (e) {
+      throw Exception('Lỗi xử lý dữ liệu từ server: $e');
     }
   }
 
