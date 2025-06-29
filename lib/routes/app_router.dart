@@ -38,7 +38,10 @@ Route<dynamic> generateRoute(RouteSettings settings) {
     case '/streak':
       return MaterialPageRoute(builder: (_) => const StreakScreen());
     case '/question':
-      return MaterialPageRoute(builder: (_) => const QuestionScreen());
+      final lessonData = settings.arguments as Map<String, dynamic>;
+      return MaterialPageRoute(
+        builder: (_) => QuestionScreen(lessonData: lessonData),
+      );
     default:
       return MaterialPageRoute(
         builder: (_) =>

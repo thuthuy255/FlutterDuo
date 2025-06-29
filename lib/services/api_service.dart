@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiConfig {
   static const String baseUrl =
-      'http://192.168.27.107:50001/api/'; // 🔁 Đổi URL của bạn
+      'http://192.168.40.118:8082/api/'; // 🔁 Đổi URL của bạn
 
   /// Lấy token từ local storage
   static Future<String?> _getToken() async {

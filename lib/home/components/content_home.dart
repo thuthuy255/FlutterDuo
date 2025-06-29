@@ -1,7 +1,6 @@
-import 'package:duolingo/dataFake/data_lesson.dart';
 import 'package:duolingo/home/services/home.api.dart';
 import 'package:duolingo/until/toast_util.dart';
-
+import 'package:duolingo/question/question.dart';
 import 'package:flutter/material.dart';
 import 'list_lesson.dart';
 
@@ -17,34 +16,37 @@ class ContentHome extends StatefulWidget {
 class _ContentHomeState extends State<ContentHome> {
   final ScrollController _scrollController = ScrollController();
   List<Map<String, dynamic>> topics = [];
+
   @override
   void initState() {
     super.initState();
     _loadTopics();
-    if (dataLesson.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        widget.setCurrentTopic(dataLesson[0]);
-      });
-    }
   }
 
   Future<void> _loadTopics() async {
     try {
-      final response = await TopicService.getAllTopic(); // Truyền body nếu cần
+      final response = await TopicService.getAllTopic();
       if (response['success'] == true && response['data'] is List) {
         final List rawTopics = response['data'];
         topics = rawTopics
+            .whereType<Map<String, dynamic>>()
             .map(
               (topic) => {
-                'nameTopic': topic['topicName'],
+                'idTopic': topic['topicId'] ?? '',
+                'topicName': topic['topicName']?.toString() ?? 'Tên chủ đề',
+                'status': topic['isLocked']?.toString() ?? 'lock',
                 'listLessons': topic['lessons'] ?? [],
               },
             )
             .toList();
 
-        if (topics.isNotEmpty) {
+        final unlockedTopic = topics.firstWhere(
+          (t) => t['status'] == 'unlock',
+          orElse: () => {},
+        );
+        if (unlockedTopic.isNotEmpty) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            widget.setCurrentTopic(topics[0]);
+            widget.setCurrentTopic(unlockedTopic);
           });
         }
 
@@ -58,7 +60,52 @@ class _ContentHomeState extends State<ContentHome> {
   }
 
   void _onItemVisible(Map<String, dynamic> topic) {
-    widget.setCurrentTopic(topic);
+    if ((topic['status']?.toString() ?? '') == 'unlock') {
+      widget.setCurrentTopic(topic);
+    }
+  }
+
+  void _onLessonClick(Map<String, dynamic> lesson) async {
+    final lessonId = lesson['lessonId'] ?? lesson['lessonID'];
+    if (lessonId == null) {
+      ToastUtil.show('Bài học không hợp lệ!', type: ToastType.error);
+      return;
+    }
+
+    try {
+      final res = await TopicService.getLessonDetail(lessonId);
+      if (res['success'] == true && res['data'] != null) {
+        final lessonData = res['data'];
+        final questions = lessonData['questions'] as List? ?? [];
+
+        final hasValid = questions.any((q) {
+          final answers = q['answers'] as List?;
+          return answers != null && answers.isNotEmpty;
+        });
+
+        if (!hasValid) {
+          ToastUtil.show(
+            'Bài học chưa có câu trả lời hợp lệ!',
+            type: ToastType.warning,
+          );
+          return;
+        }
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => QuestionScreen(lessonData: lessonData),
+          ),
+        );
+      } else {
+        ToastUtil.show(
+          res['message'] ?? 'Không thể tải bài học',
+          type: ToastType.error,
+        );
+      }
+    } catch (e) {
+      ToastUtil.show('Lỗi khi tải chi tiết bài học: $e', type: ToastType.error);
+    }
   }
 
   @override
@@ -69,8 +116,8 @@ class _ContentHomeState extends State<ContentHome> {
           final offset = _scrollController.offset;
           const itemHeight = 200.0;
           final index = (offset / itemHeight).floor();
-          if (index >= 0 && index < dataLesson.length) {
-            _onItemVisible(dataLesson[index]);
+          if (index >= 0 && index < topics.length) {
+            _onItemVisible(topics[index]);
           }
         }
         return true;
@@ -78,24 +125,28 @@ class _ContentHomeState extends State<ContentHome> {
       child: ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.only(top: 20, bottom: 100),
-        itemCount: dataLesson.length,
+        itemCount: topics.length,
         itemBuilder: (context, index) {
-          final topic = dataLesson[index];
-          final rawLessons = topic['listLessons'];
-
-          final listLessons = rawLessons is List
-              ? rawLessons.whereType<Map<String, dynamic>>().toList()
-              : <Map<String, dynamic>>[];
+          final topic = topics[index];
+          final listLessons =
+              (topic['listLessons'] as List?)
+                  ?.whereType<Map<String, dynamic>>()
+                  .toList() ??
+              [];
+          final topicName = topic['topicName']?.toString() ?? 'Tên chủ đề';
+          final topicStatus = topic['status']?.toString() ?? 'lock';
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-
             children: [
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: ListLesson(listLesson: listLessons),
+                child: ListLesson(
+                  listLesson: listLessons,
+                  topicStatus: topicStatus,
+                  onLessonClick: _onLessonClick,
+                ),
               ),
-              // Tiêu đề chủ đề nằm giữa dòng kẻ
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,
@@ -109,7 +160,7 @@ class _ContentHomeState extends State<ContentHome> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       child: Text(
-                        topic['nameTopic'] ?? 'Tên chủ đề',
+                        topicName,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -123,8 +174,6 @@ class _ContentHomeState extends State<ContentHome> {
                   ],
                 ),
               ),
-
-              // Danh sách bài học
             ],
           );
         },

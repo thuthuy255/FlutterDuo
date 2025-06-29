@@ -1,9 +1,12 @@
+import 'package:audioplayers/audioplayers.dart';
 import 'package:duolingo/components/header/header_lesson.dart';
 import 'package:duolingo/stack/main_tab_navigation.dart';
 import 'package:flutter/material.dart';
 
 class QuestionScreen extends StatefulWidget {
-  const QuestionScreen({super.key});
+  final Map<String, dynamic> lessonData;
+
+  const QuestionScreen({super.key, required this.lessonData});
 
   @override
   State<QuestionScreen> createState() => _QuestionScreenState();
@@ -13,51 +16,10 @@ class _QuestionScreenState extends State<QuestionScreen> {
   int currentStep = 0;
   int selectedIndex = -1;
   bool showFeedback = false;
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
-  final Map<String, dynamic> lessonData = {
-    "idLesson": 1007,
-    "nameLesson": "Tranh luận: Cấu trúc cơ bản",
-    "typeLesson": "Ngữ pháp",
-    "questions": [
-      {
-        "idQuestion": 1004,
-        "questionText": "Câu nào sau đây là câu tranh luận đúng cấu trúc?",
-        "answers": [
-          {"idAnswer": 1016, "answerText": "Hello", "isCorrect": true},
-          {"idAnswer": 1017, "answerText": "This is blue", "isCorrect": false},
-          {
-            "idAnswer": 1018,
-            "answerText": "My name is Thuy",
-            "isCorrect": false,
-          },
-        ],
-      },
-      {
-        "idQuestion": 1005,
-        "questionText": "Từ nào sau đây dùng để mở đầu một lập luận?",
-        "answers": [
-          {"idAnswer": 1015, "answerText": "I am fine", "isCorrect": true},
-          {"idAnswer": 1019, "answerText": "Chim", "isCorrect": false},
-          {"idAnswer": 1020, "answerText": "Hello", "isCorrect": false},
-        ],
-      },
-      {
-        "idQuestion": 1008,
-        "questionText": "What is your name?",
-        "answers": [
-          {"idAnswer": 1024, "answerText": "I am fine", "isCorrect": false},
-          {"idAnswer": 1025, "answerText": "Hello", "isCorrect": false},
-          {
-            "idAnswer": 1026,
-            "answerText": "My name is Thuy",
-            "isCorrect": true,
-          },
-        ],
-      },
-    ],
-  };
-
-  int get totalSteps => lessonData['questions'].length;
+  List<dynamic> get questions => widget.lessonData['questions'] ?? [];
+  int get totalSteps => questions.length;
 
   void _prevStep() {
     if (currentStep > 0) {
@@ -94,13 +56,27 @@ class _QuestionScreenState extends State<QuestionScreen> {
     }
   }
 
+  void playAudio(String url) async {
+    try {
+      await _audioPlayer.stop();
+      await _audioPlayer.play(UrlSource(url));
+    } catch (e) {
+      debugPrint('Lỗi phát âm thanh: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final questions = lessonData['questions'] as List;
-    final currentQuestion = questions[currentStep];
-    final answers = currentQuestion['answers'] as List;
+    if (questions.isEmpty) {
+      return const Scaffold(
+        body: Center(child: Text("Không có câu hỏi nào trong bài học này.")),
+      );
+    }
 
+    final question = questions[currentStep];
+    final answers = question['answers'] ?? [];
     final isLastStep = currentStep == totalSteps - 1;
+    final audioUrl = question['audioUrl']?.toString() ?? '';
 
     return Scaffold(
       backgroundColor: const Color(0xFFFDFDFD),
@@ -129,28 +105,52 @@ class _QuestionScreenState extends State<QuestionScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 10),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Text(
-                currentQuestion['questionText'],
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                ),
+              child: Row(
+                children: [
+                  if (audioUrl.isNotEmpty)
+                    GestureDetector(
+                      onTap: () => playAudio(audioUrl),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0xFF58CC02),
+                        ),
+                        child: const Icon(Icons.volume_up, color: Colors.white),
+                      ),
+                    ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      question['questionText']?.toString() ?? '',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 24),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: ListView.separated(
+                child: GridView.builder(
                   itemCount: answers.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 3 / 4,
+                  ),
                   itemBuilder: (context, index) {
                     final item = answers[index];
                     final isSelected = selectedIndex == index;
-                    final isCorrect = item['isCorrect'];
+                    final isCorrect = item['isCorrect'] == true;
 
                     Color borderColor = Colors.grey.shade300;
                     Color? bgColor;
@@ -158,23 +158,44 @@ class _QuestionScreenState extends State<QuestionScreen> {
                     if (showFeedback && isSelected) {
                       borderColor = isCorrect ? Colors.green : Colors.red;
                       bgColor = isCorrect ? Colors.green[50] : Colors.red[50];
+                    } else if (isSelected) {
+                      borderColor = const Color(0xFF58A1FF);
+                      bgColor = const Color(0xFFE7F0FF);
                     }
 
                     return GestureDetector(
                       onTap: () => onSelect(index),
                       child: Container(
-                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: bgColor ?? Colors.white,
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: borderColor, width: 2),
                         ),
-                        child: Text(
-                          item['answerText'],
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (item['imagePath'] != null &&
+                                item['imagePath'].toString().isNotEmpty)
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  item['imagePath'],
+                                  height: 100,
+                                  width: 100,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            const SizedBox(height: 12),
+                            Text(
+                              item['answerText']?.toString() ?? '',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     );
@@ -182,14 +203,14 @@ class _QuestionScreenState extends State<QuestionScreen> {
                 ),
               ),
             ),
-            if (showFeedback)
+            if (showFeedback && selectedIndex >= 0)
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 30,
                 ),
                 decoration: BoxDecoration(
-                  color: answers[selectedIndex]["isCorrect"]
+                  color: answers[selectedIndex]['isCorrect']
                       ? const Color(0xFFD4F9C2)
                       : const Color(0xFFFFD6D6),
                   borderRadius: BorderRadius.circular(20),
@@ -200,23 +221,23 @@ class _QuestionScreenState extends State<QuestionScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          answers[selectedIndex]["isCorrect"]
+                          answers[selectedIndex]['isCorrect']
                               ? "Excellent!"
                               : "Oops! Try again.",
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: answers[selectedIndex]["isCorrect"]
+                            color: answers[selectedIndex]['isCorrect']
                                 ? const Color(0xFF58CC02)
                                 : const Color(0xFFB00020),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Icon(
-                          answers[selectedIndex]["isCorrect"]
+                          answers[selectedIndex]['isCorrect']
                               ? Icons.check_circle
                               : Icons.cancel,
-                          color: answers[selectedIndex]["isCorrect"]
+                          color: answers[selectedIndex]['isCorrect']
                               ? const Color(0xFF58CC02)
                               : const Color(0xFFB00020),
                           size: 24,
