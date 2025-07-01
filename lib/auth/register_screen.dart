@@ -2,8 +2,6 @@ import 'package:duolingo/auth/services/auth.api.dart';
 import 'package:duolingo/until/toast_util.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:crypto/crypto.dart';
-import 'dart:convert'; // for utf8
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -23,12 +21,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
-  String hashPassword(String password) {
-    final bytes = utf8.encode(password);
-    final digest = sha256.convert(bytes);
-    return digest.toString();
-  }
-
   void handleRegister() async {
     if (_formKey.currentState!.validate()) {
       final email = _emailController.text.trim();
@@ -36,32 +28,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final password = _passwordController.text.trim();
       final confirmPassword = _confirmPasswordController.text.trim();
 
-      // So sánh mật khẩu nhập và xác nhận
       if (password != confirmPassword) {
         ToastUtil.show("Mật khẩu xác nhận không khớp", type: ToastType.warning);
         return;
       }
 
-      final hashedPassword = hashPassword(password);
       setState(() => isLoading = true);
       final body = {
         "email": email,
         "username": username,
-        "password": hashedPassword,
-        "confirmPassword": hashedPassword, // Nếu server yêu cầu giống
+        "password": password, // không hash
+        "confirmPassword": confirmPassword,
       };
 
       try {
-        final response = await AuthService.register(body); // Giả sử gọi như vậy
+        final response = await AuthService.register(body);
         if (response['success'] == true) {
           ToastUtil.show("Đăng ký thành công!", type: ToastType.success);
-          Navigator.pop(context); // Quay lại màn hình login chẳng hạn
+          Navigator.pop(context);
         } else {
           ToastUtil.show(response['message'], type: ToastType.warning);
         }
-        setState(() => isLoading = false);
       } catch (e) {
         Fluttertoast.showToast(msg: "Lỗi hệ thống: $e");
+      } finally {
         setState(() => isLoading = false);
       }
     }
